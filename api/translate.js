@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 
 export const runtime = "edge";
@@ -8,17 +7,14 @@ export async function GET(request) {
   const lang = searchParams.get("lang");
   const text = searchParams.get("text");
 
-  console.log("Received request:", { lang, text });
-
   if (!lang || !text) {
     return NextResponse.json({ translated: "" });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-
   if (!apiKey) {
     console.error("Missing OPENAI_API_KEY");
-    return NextResponse.json({ translated: "" });
+    return new Response("API key not found", { status: 500 });
   }
 
   try {
@@ -45,12 +41,10 @@ export async function GET(request) {
     });
 
     const data = await response.json();
-    console.log("OpenAI response:", data);
-
     const translated = data?.choices?.[0]?.message?.content?.trim() || "";
     return NextResponse.json({ translated });
   } catch (error) {
     console.error("Translation error:", error);
-    return NextResponse.json({ translated: "" });
+    return new Response("Internal Server Error", { status: 500 });
   }
 }
