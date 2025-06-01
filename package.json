@@ -1,7 +1,13 @@
-
 {
   "name": "weshare-ai-language",
   "version": "1.0.0",
-  "main": "index.js",
-  "type": "module"
+  "type": "module",
+  "main": "api/translate.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node api/translate.js"
+  },
+  "dependencies": {
+    "openai": "^4.25.0"
+  }
 }
