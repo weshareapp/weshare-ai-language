@@ -1,48 +1,73 @@
+
+import { NextRequest } from "next/server";
 import { OpenAI } from "openai";
 
-export const config = {
-  runtime: "edge",
-};
+const openai = new OpenAI();
 
-export default async function handler(req) {
+export const runtime = "edge";
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lang = searchParams.get("lang");
   const text = searchParams.get("text");
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return new Response("API key not found", { status: 500 });
-  }
-
   if (!lang || !text) {
-    return new Response("Missing parameters", { status: 400 });
+    return new Response(
+      JSON.stringify({ error: "Missing lang or text parameter" }),
+      {
+        status: 400,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "application/json",
+        },
+      }
+    );
   }
 
   try {
-    const openai = new OpenAI({ apiKey });
-    const response = await openai.chat.completions.create({
+    const chatCompletion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
-          role: "system",
-          content: "You are a helpful translation engine.",
-        },
-        {
           role: "user",
-          content: `Translate the following to ${lang}: "${text}"`,
+          content: `Translate "${text}" to ${lang}`,
         },
       ],
-      temperature: 0.3,
     });
 
-    const translated = response.choices[0].message.content;
-    return new Response(JSON.stringify({ translated }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    const translated = chatCompletion.choices[0]?.message?.content?.trim();
+
+    return new Response(
+      JSON.stringify({ translated }),
+      {
+        status: 200,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ error: "Translation failed", details: e.message }),
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "application/json",
+        },
+      }
+    );
   }
 }
