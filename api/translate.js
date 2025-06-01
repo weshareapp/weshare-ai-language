@@ -1,24 +1,21 @@
-import { NextResponse } from "next/server";
-
-export const runtime = "edge";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const lang = searchParams.get("lang");
   const text = searchParams.get("text");
-
-  if (!lang || !text) {
-    return NextResponse.json({ translated: "" });
-  }
-
+  const lang = searchParams.get("lang");
   const apiKey = process.env.OPENAI_API_KEY;
+
   if (!apiKey) {
-    console.error("Missing OPENAI_API_KEY");
     return new Response("API key not found", { status: 500 });
   }
 
+  if (!text || !lang) {
+    return new Response("Missing required parameters", { status: 400 });
+  }
+
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const prompt = `Translate this text to ${lang}: "${text}"`;
+    const apiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -26,25 +23,17 @@ export async function GET(request) {
       },
       body: JSON.stringify({
         model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful translator. Only return the translated phrase without commentary.",
-          },
-          {
-            role: "user",
-            content: `Translate this to ${lang}: ${text}`,
-          },
-        ],
-        temperature: 0.3,
+        messages: [{ role: "user", content: prompt }],
       }),
     });
 
-    const data = await response.json();
-    const translated = data?.choices?.[0]?.message?.content?.trim() || "";
-    return NextResponse.json({ translated });
+    const json = await apiResponse.json();
+
+    const translated = json.choices?.[0]?.message?.content?.trim() || "";
+    return new Response(JSON.stringify({ translated }), {
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
-    console.error("Translation error:", error);
-    return new Response("Internal Server Error", { status: 500 });
+    return new Response("Error translating text", { status: 500 });
   }
 }
