@@ -1,61 +1,87 @@
-(() => {
-  try {
-    const DEFAULT_LANG = 'en';
-    const API_ENDPOINT = 'https://weshare-ai-language.vercel.app/api/translate';
 
-    const phrasesToTranslate = {
-      "search": "Search for social sharing networks",
-      "copy": "Copy Link",
-      "follow": "Follow",
-      "email": "Share via Email",
-      "blog": "Post to your blog",
-      "any": "Share to any service"
-    };
+/**
+ * WeShare AI Language Switcher
+ * AI-powered dynamic translation based on browser language + geolocation
+ * https://weshare-ai-language.vercel.app/api/translate
+ */
 
-    const detectLang = () => {
-      const navLang = navigator.language || navigator.userLanguage;
-      return navLang ? navLang.split('-')[0] : DEFAULT_LANG;
-    };
+(function () {
+  const phrasesToTranslate = {
+    search: "Search for social sharing networks",
+    copy: "Copy Link",
+    follow: "Follow",
+    email: "Share via Email",
+    blog: "Post to your blog",
+    any: "Share to any service",
+  };
 
-    const translateText = async (text, lang) => {
-      try {
-        const res = await fetch(`${API_ENDPOINT}?lang=${lang}&text=${encodeURIComponent(text)}`);
-        const data = await res.json();
-        return data.translated || text;
-      } catch (err) {
-        console.error('[WeShare AI Language] Translation failed for:', text);
+  const getBrowserLanguage = () => {
+    const lang = navigator.language || navigator.userLanguage;
+    return lang.split("-")[0].toLowerCase();
+  };
+
+  const sendGAEvent = (language) => {
+    if (typeof gtag === "function") {
+      gtag("event", "weshare_language_detected", {
+        language,
+        ai_activated: true,
+      });
+    }
+  };
+
+  const translateText = async (text, lang) => {
+    const endpoint = "https://weshare-ai-language.vercel.app/api/translate";
+    try {
+      const res = await fetch(\`\${endpoint}?lang=\${lang}&text=\${encodeURIComponent(text)}\`);
+      const data = await res.json();
+      if (data.translated) {
+        console.log("[WeShare AI Language] Translated:", text, "→", data.translated);
+        return data.translated;
+      } else {
+        console.warn("[WeShare AI Language] Translation failed for:", text);
         return text;
       }
-    };
+    } catch (error) {
+      console.error("[WeShare AI Language] Error:", error);
+      return text;
+    }
+  };
 
-    const translateAll = async () => {
-      const lang = detectLang();
-      if (lang === DEFAULT_LANG) return;
+  const translatePhrases = async (lang) => {
+    const elements = document.querySelectorAll("[data-weshare-i18n]");
+    for (const el of elements) {
+      const key = el.getAttribute("data-weshare-i18n");
+      const original = phrasesToTranslate[key];
+      if (!original) continue;
+      const translated = await translateText(original, lang);
+      el.innerText = translated;
+    }
+  };
 
-      for (const [key, text] of Object.entries(phrasesToTranslate)) {
-        const translated = await translateText(text, lang);
-        const targets = document.querySelectorAll(`[data-weshare-i18n="${key}"]`);
-        targets.forEach(el => {
-          if (el.placeholder) el.placeholder = translated;
-          else el.innerText = translated;
-        });
-      }
+  const runTranslationModule = async () => {
+    const lang = getBrowserLanguage();
+    console.log("[WeShare AI Language] Browser language detected:", lang);
+    sendGAEvent(lang);
+    await translatePhrases(lang);
+  };
 
-      if (window.gtag) {
-        gtag('event', 'language_activated', { lang_code: lang });
-      }
-    };
-
-    // Safe load trigger
-    window.addEventListener('load', () => {
-      if (typeof e_mailit === "undefined" || !document.querySelector("#e-mailit_menu")) {
-        console.warn("[WeShare AI Language] Skipping — e_mailit or menu not ready.");
-        return;
-      }
-      translateAll();
+  const waitForEMailit = () => {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (window.e_mailit && window.e_mailit.menu && typeof e_mailit.menu.open === "function") {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      check();
     });
+  };
 
-  } catch (e) {
-    console.error('[WeShare AI Language] Fatal error:', e);
-  }
+  window.addEventListener("load", () => {
+    waitForEMailit().then(() => {
+      console.log("[WeShare AI Language] e_mailit ready — running translation");
+      runTranslationModule();
+    });
+  });
 })();
