@@ -32,7 +32,7 @@
   const translateText = async (text, lang) => {
     const endpoint = "https://weshare-ai-language.vercel.app/api/translate";
     try {
-      const res = await fetch(\`\${endpoint}?lang=\${lang}&text=\${encodeURIComponent(text)}\`);
+      const res = await fetch(endpoint + "?lang=" + lang + "&text=" + encodeURIComponent(text));
       const data = await res.json();
       if (data.translated) {
         console.log("[WeShare AI Language] Translated:", text, "→", data.translated);
