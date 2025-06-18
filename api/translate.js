@@ -1,3 +1,4 @@
+// /api/translate.js
 import { OpenAI } from "openai";
 
 export const config = {
@@ -9,18 +10,18 @@ const openai = new OpenAI({
 });
 
 export default async function handler(req) {
-  const { searchParams } = new URL(req.url);
+  const searchParams = new URL(req.url).searchParams;
   const lang = searchParams.get("lang");
   const text = searchParams.get("text");
+  const keys = searchParams.get("keys");
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": "https://weshareapp.io",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
   };
 
-  // Handle preflight request
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -35,31 +36,56 @@ export default async function handler(req) {
     });
   }
 
-  if (!lang || !text) {
+  try {
+    // Single string mode
+    if (text) {
+      const res = await openai.chat.completions.create({
+        messages: [
+          {
+            role: "user",
+            content: `Translate the following string to ${lang}: "${text}"`,
+          },
+        ],
+        model: "gpt-3.5-turbo",
+      });
+
+      const output = res.choices[0].message.content.trim();
+      return new Response(JSON.stringify({ translation: output }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
+
+    // Bulk translation mode
+    if (keys) {
+      const keyList = keys.split(",").map((k) => k.trim());
+      const translations = {};
+
+      for (const key of keyList) {
+        const res = await openai.chat.completions.create({
+          messages: [
+            {
+              role: "user",
+              content: `Translate the following string to ${lang}: "${key}"`,
+            },
+          ],
+          model: "gpt-3.5-turbo",
+        });
+        translations[key] = res.choices[0].message.content.trim();
+      }
+
+      return new Response(JSON.stringify(translations), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Missing parameters" }), {
       status: 400,
       headers: corsHeaders,
     });
-  }
-
-  try {
-    const prompt = `Translate the following UI phrase to the target language. Only return the translated phrase with no extra quotes or formatting.
-
-Phrase: "${text}"
-Target language (ISO code): ${lang}`;
-
-    const chatCompletion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const translation = chatCompletion.choices[0].message.content.trim();
-
-    return new Response(JSON.stringify({ translated: translation }), {
-      headers: corsHeaders,
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: "Translation error: " + err.message }), {
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: corsHeaders,
     });
