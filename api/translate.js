@@ -13,12 +13,22 @@ export default async function handler(req) {
   const lang = searchParams.get("lang");
   const text = searchParams.get("text");
 
+  // Dynamic CORS handling
+  const allowedOrigins = ["https://weshareapp.io", "https://www.weshareapp.io"];
+  const origin = req.headers.get("origin");
+
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "https://www.weshareapp.io",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Content-Type": "application/json",
   };
+
+  // Set the appropriate origin header
+  if (allowedOrigins.includes(origin)) {
+    corsHeaders["Access-Control-Allow-Origin"] = origin;
+  } else {
+    corsHeaders["Access-Control-Allow-Origin"] = "https://www.weshareapp.io"; // default
+  }
 
   // Handle preflight request
   if (req.method === "OPTIONS") {
@@ -35,39 +45,30 @@ export default async function handler(req) {
     });
   }
 
-  if (!lang || !text) {
-    return new Response(JSON.stringify({ error: "Missing parameters" }), {
-      status: 400,
-      headers: corsHeaders,
-    });
-  }
-
   try {
-    const messages = [
-      {
-        role: "system",
-        content: `Translate the following English phrase to ${lang}. Only return the translated phrase as plain text.`,
-      },
-      {
-        role: "user",
-        content: text,
-      },
-    ];
-
-    const chatCompletion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages,
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: `You are a translation engine. Translate the following text into ${lang} only. Return only the translated string.`,
+        },
+        {
+          role: "user",
+          content: text,
+        },
+      ],
+      temperature: 0.3,
     });
 
-    const translation = chatCompletion.choices[0].message.content;
+    const translation = completion.choices[0]?.message?.content?.trim() || "";
 
     return new Response(JSON.stringify({ translation }), {
       status: 200,
       headers: corsHeaders,
     });
-  } catch (err) {
-    console.error("Translation error:", err);
-    return new Response(JSON.stringify({ error: "Translation failed" }), {
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: corsHeaders,
     });
