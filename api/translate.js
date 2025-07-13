@@ -13,15 +13,12 @@ export default async function handler(req) {
   const lang = searchParams.get("lang");
   const text = searchParams.get("text");
 
-  const origin = req.headers.get("origin");
-const allowedOrigins = ["https://weshareapp.io", "https://www.weshareapp.io"];
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : "https://www.weshareapp.io",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Content-Type": "application/json"
-};
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "https://weshareapp.io",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Content-Type": "application/json"
+  };
 
   // Handle preflight request
   if (req.method === "OPTIONS") {
