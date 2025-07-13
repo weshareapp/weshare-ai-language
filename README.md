@@ -1,7 +1,6 @@
 # WeShare AI Language Translation API
 
 This is a Vercel-compatible API function for real-time language translation using OpenAI.
-# WeShare AI Language API
 
 🧠 The official AI-powered dynamic translation system by [WeShare](https://weshareapp.io/), built for real-time language switching without profiling users.  
 🌍 Supports 20 major languages — plug & play — GDPR-compliant.
